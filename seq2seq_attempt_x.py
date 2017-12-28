@@ -4,22 +4,29 @@ import tensorflow as tf
 import time
 from tensorflow.python.layers import core as layers_core
 import os
+import copy
+#TODO: Reinstate deepcopy for EOS and SOS tagging
 
+debug_dict = {}
+
+# works
 def get_seq_length(input):
     ls = []
     for i in input:
         ls.append(len(i))
     return ls
 
+# works
 def append_EOS(targets, target_dict):
-    t = targets
+    t = copy.deepcopy(targets)
     for i in t:
         i.append(target_dict['<EOS>'])
 
     return t
 
+# works
 def append_SOS(targets, target_dict):
-    t = targets
+    t = copy.deepcopy(targets)
     for i in t:
         i.insert(0, target_dict['<GO>'])
     return t
@@ -32,13 +39,13 @@ def test_batch_data(questions, answers_input, answers_output, q_dict, a_dict, ba
     q_length = np.array(get_seq_length(q_batch)).astype(np.int32)
     a_length = np.array(get_seq_length(a_inp_batch)).astype(np.int32)
 
-    pad_q_batch = np.array(pad_sentence_batch(questions_batch, q_dict)).astype(np.int32)
+    pad_q_batch = np.array(pad_sentence_batch(q_batch, q_dict)).astype(np.int32)
     pad_a_in_batch = np.array(pad_sentence_batch(a_inp_batch, a_dict)).astype(np.int32)
     pad_a_out_batch = np.array(pad_sentence_batch(a_out_batch, a_dict)).astype(np.int32)
 
     return pad_q_batch, pad_a_in_batch, pad_a_out_batch, q_length, a_length
 
-
+# works
 def batch_data(questions, answers_input, answers_output, q_dict, a_dict, batch_size):
     # for batch_i in range(0, len(questions) // batch_size):
     #     start_i = batch_i * batch_size
@@ -69,16 +76,19 @@ def batch_data(questions, answers_input, answers_output, q_dict, a_dict, batch_s
 
         yield pad_q_batch, pad_a_in_batch, pad_a_out_batch, q_length, a_length
 
+# works
 def pad_sentence_batch(sentence_batch, word2int):
     max_sentence = max([len(sentence) for sentence in sentence_batch])
     return [sentence + [word2int['<PAD>']] * (max_sentence - len(sentence)) for sentence in sentence_batch]
 
+# works
 def create_embeddings(src_vocab_size, tgt_vocab_size, source_emb_size, target_emb_size):
     enc_embeddings = tf.get_variable('embedding_encoder', [src_vocab_size, source_emb_size], tf.float32)
     dec_embeddings = tf.get_variable('embedding_decoder', [tgt_vocab_size, target_emb_size], tf.float32)
 
     return enc_embeddings, dec_embeddings
 
+# works
 def get_embedded_inputs(enc_inputs, dec_inputs, enc_embeddings, dec_embeddings):
     enc_emb_inp = tf.nn.embedding_lookup(enc_embeddings, enc_inputs)
     dec_emb_inp = tf.nn.embedding_lookup(dec_embeddings, dec_inputs)
@@ -112,7 +122,10 @@ def decode_decoder_cell(enc_state, decoder_cell, type_train, input, seq_length, 
     decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, enc_state, output_layer=proj_layer)
     outputs,_,_ = tf.contrib.seq2seq.dynamic_decode(decoder, maximum_iterations=max_iters)
 
-    logits = outputs.rnn_output
+    if type_train:
+        logits = outputs.rnn_output
+    else:
+        logits = outputs.sample_id
 
     return logits
 
@@ -159,6 +172,9 @@ def build_full_model(source_inputs, target_inputs,
     # 3. Build encoder
     enc_outputs, enc_states = build_encoder(enc_emb_inp, source_seq_length, num_units)
 
+    debug_dict['enc_outputs'] = enc_outputs
+    debug_dict['enc_states'] = enc_states
+
     # 4. Build decoder
     decoder_cell = build_decoder_cell(enc_outputs, source_seq_length, num_units)
 
@@ -172,6 +188,7 @@ def build_full_model(source_inputs, target_inputs,
                                      sos_id=sos_id, eos_id=eos_id)
     return logits
 
+# works
 def init_placeholders():
     ## Input specific parameters
     # inputs into graph
@@ -285,9 +302,25 @@ sess.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver()
 
+[pad_q_batch, pad_a_in_batch, pad_a_out_batch, q_length, a_length] = test_batch_data(questions, answers_input,
+                                                                                     answers_output, q_dict,
+                                                                                     a_dict, batch_size)
+
+source_inputs_result, enc_outputs, enc_states = sess.run([source_inputs, debug_dict['enc_outputs'], debug_dict['enc_states']],
+                      feed_dict={source_inputs: pad_q_batch,
+                                 target_inputs: pad_a_in_batch,
+                                 target_outputs: pad_a_out_batch,
+                                 source_seq_length: q_length,
+                                 target_seq_length: a_length,
+                                 kp: 1.0})
+
+
+
+'''
 for batch_i, (questions_batch, answers_inp_batch, answers_out_batch, q_length, a_length
               ) in enumerate(batch_data(questions, answers_input, answers_output,
                                                                     q_dict, a_dict, batch_size)):
+
 
     start_time = time.time()
 
@@ -309,3 +342,19 @@ for batch_i, (questions_batch, answers_inp_batch, answers_out_batch, q_length, a
 
 path = saver.save(sess, checkpoint)
 print('Model saved in file :%s' % path)
+'''
+
+# Running an inference graph
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    saver.restore(sess, checkpoint)
+
+    translations = build_full_model(source_inputs, target_inputs,
+                                      source_vocab_size, target_vocab_size,
+                                      sos_id, eos_id,
+                                      enc_emb_size, dec_emb_size,
+                                      source_seq_length, target_seq_length,
+                                      num_units,
+                                      False,
+                                      batch_size)

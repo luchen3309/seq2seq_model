@@ -127,26 +127,38 @@ def sort_by_length(q,a, max_length):
 
 # load data
 train_data = json.load(open('/Users/luchen/Downloads/sample_dataset/train/dialogues_task.json'))
-# validate_data = json.load(open('/Users/luchen/Downloads/sample_dataset/valid/dialogues_task.json'))
-# test_data = json.load(open('/Users/luchen/Downloads/sample_dataset/test/dialogues_task.json'))
+validate_data = json.load(open('/Users/luchen/Downloads/sample_dataset/valid/dialogues_task.json'))
+test_data = json.load(open('/Users/luchen/Downloads/sample_dataset/test/dialogues_task.json'))
 
 # split questions and answers
 questions, answers = split_q_a(train_data)
+q_valid, a_valid = split_q_a(validate_data)
+q_test, a_test = split_q_a(test_data)
 
 # clean questions and answers
 clean_qs = apply_cleaning(questions)
 clean_as = apply_cleaning(answers)
 
+clean_qv = apply_cleaning(q_valid)
+clean_av = apply_cleaning(a_valid)
+
+clean_qt = apply_cleaning(q_test)
+clean_at = apply_cleaning(a_test)
+
 # remove questions/answers that are too long/too short
 [final_qs, final_as] = filter_data(clean_qs, clean_as, 1, 25)
+[final_qvs, final_avs] = filter_data(clean_qv, clean_av, 1, 25)
+[final_qts, final_ats] = filter_data(clean_qt, clean_at, 1, 25)
+
+q_s = final_qs + final_qvs + final_qts
+a_s = final_as + final_avs + final_ats
 
 # count how many times each word appears in the corpus
 vocab = {}
-vocab = create_word_freq(final_qs, vocab)
-vocab = create_word_freq(final_as, vocab)
+vocab = create_word_freq(q_s, vocab)
+vocab = create_word_freq(a_s, vocab)
 
 # map words to integers (sketchily)
-# consider using word2vec to map words
 q_word2int = word_2_int_dict(vocab, 5)
 a_word2int = word_2_int_dict(vocab, 5)
 
@@ -162,19 +174,39 @@ a_int2word = {v_i: v for v, v_i in a_word2int.items()}
 
 # convert text to numbers
 q_vec = convert_words2int(final_qs, q_word2int)
-a_vec = convert_words2int(final_as, q_word2int)
+a_vec = convert_words2int(final_as, a_word2int)
 
-q_final, a_final = sort_by_length(q_vec, a_vec, 40)
+q_vec_v = convert_words2int(final_qvs, q_word2int)
+a_vec_v = convert_words2int(final_avs, a_word2int)
+
+q_vec_t = convert_words2int(final_qts, q_word2int)
+a_vec_t = convert_words2int(final_ats, a_word2int)
+
+q_vec, a_vec = sort_by_length(q_vec, a_vec, 40)
+q_vec_v, a_vec_v = sort_by_length(q_vec_v, a_vec_v, 40)
+q_vec_t, a_vec_t = sort_by_length(q_vec_t, a_vec_t, 40)
 
 # cache data
-with open('/Users/luchen/Documents/TrueAI/train_q_final_2.json','w') as f:
-    json.dump(q_final, f, ensure_ascii=False)
+with open('/Users/luchen/Documents/TrueAI/train_q_final.json','w') as f:
+    json.dump(q_vec, f, ensure_ascii=False)
 
-with open('/Users/luchen/Documents/TrueAI/train_a_final_2.json','w') as f:
-    json.dump(a_final, f, ensure_ascii=False)
+with open('/Users/luchen/Documents/TrueAI/train_a_final.json','w') as f:
+    json.dump(a_vec, f, ensure_ascii=False)
 
-with open('/Users/luchen/Documents/TrueAI/train_q_word2int_2.json','w') as f:
+with open('/Users/luchen/Documents/TrueAI/valid_q_final.json','w') as f:
+    json.dump(q_vec_v, f, ensure_ascii=False)
+
+with open('/Users/luchen/Documents/TrueAI/valid_a_final.json','w') as f:
+    json.dump(a_vec_v, f, ensure_ascii=False)
+
+with open('/Users/luchen/Documents/TrueAI/test_q_final.json','w') as f:
+    json.dump(q_vec_t, f, ensure_ascii=False)
+
+with open('/Users/luchen/Documents/TrueAI/test_a_final.json','w') as f:
+    json.dump(a_vec_t, f, ensure_ascii=False)
+
+with open('/Users/luchen/Documents/TrueAI/q_dict.json','w') as f:
     json.dump(q_word2int, f, ensure_ascii=False)
 
-with open('/Users/luchen/Documents/TrueAI/train_a_word2int_2.json','w') as f:
+with open('/Users/luchen/Documents/TrueAI/a_dict.json','w') as f:
     json.dump(a_word2int, f, ensure_ascii=False)
