@@ -9,6 +9,9 @@ numwords = 2
 x = tf.random_normal([batch_size, numwords, dim], mean=0, stddev=1)
 m = tf.random_normal([dim,clusters], mean=0, stddev=1)
 
-ltc = LTC(dim, clusters)
+ltc = LTC(dim, clusters, numwords)
 
-a = ltc(x)
+a = ltc(x,m)
+
+sess = tf.Session()
+sess.run(a)

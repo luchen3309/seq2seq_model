@@ -57,3 +57,96 @@ _,t_loss = test_session.run([test_op, test_loss],
                             test_kp: keep_prob})
 
 print(t_loss)
+
+
+# Debugging purposes: add everything to debugging dict
+debug_dict['enc_emb'] = enc_emb
+debug_dict['dec_emb'] = dec_emb
+debug_dict['param_m'] = param_m
+debug_dict['enc_emb_inp'] = enc_emb_inp
+debug_dict['dec_emb_inp'] = dec_emb_inp
+debug_dict['enc_outputs'] = enc_outputs
+debug_dict['enc_states'] = enc_states
+debug_dict['decoder_cell'] = decoder_cell
+debug_dict['logits'] = logits
+debug_dict['preds'] = preds
+
+
+# Debugging checks
+[pad_q_batch, pad_a_in_batch, pad_a_out_batch, q_length, a_length] = test_batch_data(questions, answers_input,
+                                                                                     answers_output, q_dict,
+                                                                                     a_dict, batch_size)
+source_inputs,\
+target_inputs,\
+target_outputs,\
+enc_emb,\
+dec_emb,\
+param_m,\
+enc_emb_inp,\
+dec_emb_inp,\
+enc_outputs,\
+enc_states,\
+logits,\
+preds = train_sess.run([source_inputs, target_inputs, target_outputs, debug_dict['enc_emb'],
+debug_dict['dec_emb'],
+debug_dict['param_m'],
+debug_dict['enc_emb_inp'],
+debug_dict['dec_emb_inp'],
+debug_dict['enc_outputs'],
+debug_dict['enc_states'],
+debug_dict['logits'],
+debug_dict['preds'] ],
+                      feed_dict={source_inputs: pad_q_batch,
+                                 target_inputs: pad_a_in_batch,
+                                 target_outputs: pad_a_out_batch,
+                                 source_seq_length: q_length,
+                                 target_seq_length: a_length,
+                                 kp: 1.0})
+print(source_inputs.shape)
+print(target_inputs.shape)
+print(target_outputs.shape)
+print(enc_emb.shape)
+print(dec_emb.shape)
+print(param_m.shape)
+print(enc_emb_inp.shape)
+print(dec_emb_inp.shape)
+print(enc_outputs.shape)
+# print(enc_states.shape)
+print(logits.shape)
+print(preds.shape)
+
+
+def clean_counts(questions, answers, min_length, max_length):
+    q=[]
+    a=[]
+
+    for i in range(len(questions)):
+        if questions[i] >=min_length and questions[i] <= max_length \
+            and answers[i] >= min_length and answers[i] <= max_length:
+
+            q.append(questions[i])
+            a.append(answers[i])
+
+    return q,a
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
